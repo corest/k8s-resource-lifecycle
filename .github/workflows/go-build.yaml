@@ -1,14 +1,19 @@
-name: Build project
+name: Lint project
 
 on: push
 
 jobs:
-  build:
-    name: Build project
-    runs-on: ubuntu-latest
+  lint:
+    name: Linter
+    runs-on: ubuntu-18.04
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-go@v2
       with:
-        stable: 'true'
-    - run: go build
+        stable: 'false'
+        go-version: '1.14.1'
+    - name: Lint code
+      run: |
+        curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.26.0
+
+        golangci-lint run
