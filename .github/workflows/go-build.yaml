@@ -15,5 +15,5 @@ jobs:
     - name: Lint code
       run: |
         curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.26.0
-
+        cd k8s-resource-lifecycle
         golangci-lint run
