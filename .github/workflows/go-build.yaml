@@ -1,0 +1,6 @@
+steps:
+- uses: actions/checkout@v2
+- uses: actions/setup-go@v2
+  with:
+    stable: 'true'
+- run: go build
