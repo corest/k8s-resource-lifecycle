@@ -8,13 +8,16 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sync"
 	"time"
 
 	"github.com/briandowns/spinner"
 	"github.com/giantswarm/microerror"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/apiserver/pkg/apis/audit"
 
+	"github.com/corest/k8s-resource-lifecycle/pkg/metaresource"
 	"github.com/corest/k8s-resource-lifecycle/pkg/project"
 )
 
@@ -66,7 +69,45 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 		s.Stop()
 	}
 
-	fmt.Println(auditLogFiles)
+	// write constructor for this
+	metaResource := metaresource.MetaResource{
+		Kind:       r.flag.ResourceKind,
+		Name:       r.flag.ResourceName,
+		Namespace:  r.flag.ResourceNamespace,
+		APIGroup:   r.flag.ResourceAPIGroup,
+		APIVersion: r.flag.ResourceAPIVersion,
+	}
+
+	var wg sync.WaitGroup
+	storeCh := make(chan audit.Event)
+	errCh := make(chan error)
+	for _, f := range auditLogFiles {
+		wg.Add(1)
+		go metaResource.FindEvents(f, storeCh, errCh, &wg)
+	}
+
+	var errors []error
+	go func() {
+		for {
+			select {
+			case event := <-storeCh:
+				fmt.Printf("---\nUser: %#q groups: %v\n", event.User.Username, event.User.Groups)
+				fmt.Printf("Verb: %#q\n", event.Verb)
+				fmt.Printf("Object:\n\t- resource: %#q\n\t- name: %#q\n\t- namespace: %#q\n\t- apiGroup: %#q\n\t- apiVersion: %#q\n",
+					event.ObjectRef.Resource, event.ObjectRef.Name, event.ObjectRef.Namespace, event.ObjectRef.APIGroup, event.ObjectRef.APIVersion)
+			case err := <-errCh:
+				errors = append(errors, err)
+			}
+		}
+	}()
+
+	wg.Wait()
+
+	for _, err := range errors {
+		fmt.Println("error")
+		return err
+	}
+
 	return nil
 }
 
