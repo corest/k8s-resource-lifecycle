@@ -13,11 +13,10 @@ const (
 	flagSearchPattern   = "search-pattern"
 
 	// resource flags
-	flagResourceKind       = "resource-kind"
-	flagResourceName       = "resource-name"
-	flagResourceNamespace  = "resource-namespace"
-	flagResourceAPIGroup   = "resource-apigroup"
-	flagResourceAPIVersion = "resource-apiversion"
+	flagResourceKind      = "resource-kind"
+	flagResourceName      = "resource-name"
+	flagResourceNamespace = "resource-namespace"
+	flagResourceAPIGroup  = "resource-apigroup"
 )
 
 type flag struct {
@@ -26,11 +25,10 @@ type flag struct {
 	SearchPattern   string
 
 	// Resource options
-	ResourceKind       string
-	ResourceName       string
-	ResourceNamespace  string
-	ResourceAPIGroup   string
-	ResourceAPIVersion string
+	ResourceKind      string
+	ResourceName      string
+	ResourceNamespace string
+	ResourceAPIGroup  string
 }
 
 func (f *flag) Init(cmd *cobra.Command) {
@@ -44,7 +42,6 @@ func (f *flag) Init(cmd *cobra.Command) {
 	cmd.Flags().StringVar(&f.ResourceName, flagResourceName, "", "Resource name")
 	cmd.Flags().StringVar(&f.ResourceNamespace, flagResourceNamespace, "", "Resource namespace")
 	cmd.Flags().StringVar(&f.ResourceAPIGroup, flagResourceAPIGroup, "", "Resource apigroup")
-	cmd.Flags().StringVar(&f.ResourceAPIVersion, flagResourceAPIVersion, "", "Resource apiversion")
 }
 
 func (f *flag) Validate() error {
@@ -68,10 +65,6 @@ func (f *flag) Validate() error {
 
 	if f.ResourceAPIGroup == "" {
 		return microerror.Maskf(invalidFlagsError, "--%s must not be empty", flagResourceAPIGroup)
-	}
-
-	if f.ResourceAPIVersion == "" {
-		return microerror.Maskf(invalidFlagsError, "--%s must not be empty", flagResourceAPIVersion)
 	}
 
 	return nil

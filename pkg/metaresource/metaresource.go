@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
+	"sort"
 	"sync"
 
 	"github.com/giantswarm/microerror"
@@ -11,11 +12,11 @@ import (
 )
 
 type MetaResource struct {
-	Kind       string
-	Name       string
-	Namespace  string
-	APIGroup   string
-	APIVersion string
+	Kind      string
+	Name      string
+	Namespace string
+	APIGroup  string
+	Events    []audit.Event
 }
 
 func (m *MetaResource) FindEvents(f string, storeCh chan<- audit.Event, errCh chan<- error, wg *sync.WaitGroup) {
@@ -42,12 +43,21 @@ func (m *MetaResource) FindEvents(f string, storeCh chan<- audit.Event, errCh ch
 	}
 }
 
+func (m *MetaResource) StoreEvent(event audit.Event) {
+	m.Events = append(m.Events, event)
+}
+
+func (m *MetaResource) SortEvents() {
+	sort.Slice(m.Events, func(i, j int) bool {
+		return m.Events[i].StageTimestamp.Time.Before(m.Events[j].StageTimestamp.Time)
+	})
+}
+
 func (m *MetaResource) isTargetResource(event audit.Event) bool {
 	return event.ObjectRef.Resource == m.Kind &&
 		event.ObjectRef.Name == m.Name &&
 		event.ObjectRef.Namespace == m.Namespace &&
-		event.ObjectRef.APIGroup == m.APIGroup &&
-		event.ObjectRef.APIVersion == m.APIVersion
+		event.ObjectRef.APIGroup == m.APIGroup
 }
 
 func isMutatingOperation(op string) bool {

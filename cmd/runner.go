@@ -60,7 +60,7 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 
 	var auditLogFiles []string
 	{
-		s.Suffix = " Searching for audit log files"
+		s.Prefix = "Searching for audit log files "
 		s.Start()
 		auditLogFiles, err = auditLogFilesSearch(r.flag.AuditLogPath, r.flag.SearchPattern, r.flag.RecursiveSearch)
 		if err != nil {
@@ -69,13 +69,17 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 		s.Stop()
 	}
 
+	fmt.Printf("Looking for resource events:\n\t- kind: %#q\n\t- name: %#q\n\t- apiGroup: %#q\n\n",
+		r.flag.ResourceKind, r.flag.ResourceName, r.flag.ResourceAPIGroup)
+	s.Prefix = "Processing log files "
+	s.Start()
+
 	// write constructor for this
 	metaResource := metaresource.MetaResource{
-		Kind:       r.flag.ResourceKind,
-		Name:       r.flag.ResourceName,
-		Namespace:  r.flag.ResourceNamespace,
-		APIGroup:   r.flag.ResourceAPIGroup,
-		APIVersion: r.flag.ResourceAPIVersion,
+		Kind:      r.flag.ResourceKind,
+		Name:      r.flag.ResourceName,
+		Namespace: r.flag.ResourceNamespace,
+		APIGroup:  r.flag.ResourceAPIGroup,
 	}
 
 	var wg sync.WaitGroup
@@ -91,10 +95,7 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 		for {
 			select {
 			case event := <-storeCh:
-				fmt.Printf("---\nUser: %#q groups: %v\n", event.User.Username, event.User.Groups)
-				fmt.Printf("Verb: %#q\n", event.Verb)
-				fmt.Printf("Object:\n\t- resource: %#q\n\t- name: %#q\n\t- namespace: %#q\n\t- apiGroup: %#q\n\t- apiVersion: %#q\n",
-					event.ObjectRef.Resource, event.ObjectRef.Name, event.ObjectRef.Namespace, event.ObjectRef.APIGroup, event.ObjectRef.APIVersion)
+				metaResource.StoreEvent(event)
 			case err := <-errCh:
 				errors = append(errors, err)
 			}
@@ -102,10 +103,22 @@ func (r *runner) run(ctx context.Context, cmd *cobra.Command, args []string) err
 	}()
 
 	wg.Wait()
+	s.Stop()
 
 	for _, err := range errors {
 		fmt.Println("error")
 		return err
+	}
+
+	if len(metaResource.Events) == 0 {
+		fmt.Println("No events found")
+		return nil
+	}
+
+	metaResource.SortEvents()
+
+	for _, event := range metaResource.Events {
+		fmt.Printf("Found %#q resource event (%s)\n", event.Verb, event.StageTimestamp.String())
 	}
 
 	return nil
